@@ -1,0 +1,74 @@
+cabal-version: 2.2
+name:
+  emmy
+version:
+  0.1
+synopsis:
+  A performance-oriented event manager
+description:
+  Why write another event manager? GHC ships with the mio event manager,
+  but mio is burdened with backwards-compatibility concerns that are
+  antithetical to performance:
+  .
+  * It supports platforms that have @poll@ as their only mechanism
+    for polling events. This limits mio to using the level-triggered
+    interfaces of @epoll@ and @kqueue@.
+  * It supports multiple registrations per file descriptor. Taking
+    advantage of this feature implies that a file descriptor is shared
+    across multiple green threads. However, such sharing is dubious.
+    An application using network sockets is this way is suseptible to
+    the thundering herd problem. Making this even worse is that a stream
+    socket shared across multiple threads lacks useful behavior (unlike
+    a datagram socket).
+  * It supports arbitrary callbacks associated with each registration.
+    With network sockets, the only callback ever used is one that fills
+    a TVar or MVar. This is good since processing data inside the
+    callback could delay or hang the event manager. But, since the
+    only callback network sockets ever need is one that fills a variable,
+    there is no need to support arbitrary callbacks.
+  .
+  In constrast to mio, the event manager in this module:
+  .
+  * Supports only platforms with event notification facilities that provide
+    an edge-triggered interface.
+  * Allows at most 1 registration per file descriptor. This registration
+    always includes the read channel and the write channel.
+  * Pushes out readiness notifications using @TVar@s rather than callbacks.
+  .
+  After a user registers an file descriptor with @register@, it may call
+  @reader@ or @writer@ at any time to retrieve the @TVar Bool@ associated with
+  that describes the readiness of that channel. Because of how edge-triggered
+  event notification works, this TVar has some slightly unusual properties.
+  This is best illustrated by example. The example has been removed.
+bug-reports:
+  https://github.com/chessai/emmy.git
+license:
+  MIT
+license-file:
+  LICENSE
+author:
+  Andrew Martin
+maintainer:
+  Andrew Martin
+  chessai <chessai1996@gmail.com>
+build-type:
+  Simple
+extra-source-files:
+  changelog.md
+  readme.md
+
+library
+  hs-source-dirs:
+    src
+  exposed-modules:
+    Emmy
+  build-depends:
+    , base >= 4.11 && < 4.14
+    , posix-api >= 0.3 && < 0.4
+    , primitive >= 0.6.4 && < 0.8
+    , primitive-unlifted
+    , stm
+  ghc-options:
+    -Wall -O2
+  default-language:
+    Haskell2010
